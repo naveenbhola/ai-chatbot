@@ -1,0 +1,126 @@
+version: '3.8'
+
+services:
+  # Ollama (open-source LLM server)
+  ollama:
+    image: ollama/ollama:latest
+    container_name: pdf-chat-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - pdf-chat-network
+
+  # Ensure required embedding model exists in Ollama at startup
+  ollama-init:
+    image: ollama/ollama:latest
+    container_name: pdf-chat-ollama-init
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    depends_on:
+      - ollama
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - pdf-chat-network
+    restart: "no"
+    entrypoint: ["/bin/sh","-lc"]
+    command: >
+      "echo 'Waiting for Ollama daemon...'; \
+      until ollama list >/dev/null 2>&1; do echo '...'; sleep 2; done; \
+      if ! ollama list | awk '{print $1}' | grep -q '^mxbai-embed-large'; then \
+        echo 'Pulling mxbai-embed-large model...'; \
+        ollama pull mxbai-embed-large; \
+      else \
+        echo 'mxbai-embed-large already present.'; \
+      fi"
+
+  # MongoDB Database
+  mongodb:
+    image: mongo:6.0
+    container_name: pdf-chat-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password123
+      MONGO_INITDB_DATABASE: pdf-chat
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    networks:
+      - pdf-chat-network
+
+  # Backend API
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: pdf-chat-backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      MONGODB_URI: mongodb://admin:password123@mongodb:27017/pdf-chat?authSource=admin
+      AI_PROVIDER: ${AI_PROVIDER:-openai}
+      OLLAMA_BASE_URL: http://ollama:11434
+      MODEL_NAME: ${MODEL_NAME:-llama3.2:3b}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-mxbai-embed-large}
+      # Optional OpenAI fallback
+      OPENAI_API_KEY:
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.groq.com/openai/v1}
+      OPENAI_MODEL: ${OPENAI_MODEL:-meta-llama/llama-4-scout-17b-16e-instruct}
+      QDRANT_URL: http://qdrant:6333
+      QDRANT_COLLECTION: pdf_chunks
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./uploads:/app/uploads
+    depends_on:
+      - mongodb
+      - ollama
+      - ollama-init
+      - qdrant
+    networks:
+      - pdf-chat-network
+
+  # Frontend Client
+  frontend:
+    build:
+      context: ./client
+      dockerfile: Dockerfile.frontend
+    container_name: pdf-chat-frontend
+    restart: unless-stopped
+    environment:
+      REACT_APP_API_URL: http://localhost:5000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - pdf-chat-network
+
+  # Qdrant Vector DB
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: pdf-chat-qdrant
+    restart: unless-stopped
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_storage:/qdrant/storage
+    networks:
+      - pdf-chat-network
+
+volumes:
+  mongodb_data:
+  ollama_data:
+  qdrant_storage:
+
+networks:
+  pdf-chat-network:
+    driver: bridge
+
