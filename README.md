@@ -4,7 +4,7 @@ A REST API built with the MERN stack that enables conversational interaction wit
 
 ## Features
 
-- **PDF Upload & Processing**: Upload PDF files or provide URLs for document ingestion
+- **PDF Upload & Processing**: Upload PDF files for document ingestion
 - **Intelligent Chat Interface**: Ask questions about uploaded documents with AI-powered responses
 - **Source Citations**: Get answers with relevant page references and text excerpts
 - **Conversation History**: Maintain chat sessions with follow-up question support
@@ -15,7 +15,9 @@ A REST API built with the MERN stack that enables conversational interaction wit
 
 - **Backend**: Node.js, Express.js, MongoDB, Mongoose
 - **Frontend**: React.js, Tailwind CSS, Axios
-- **AI Integration**: Groq (OpenAI-compatible) for LLM; Ollama for embeddings; optional Ollama LLM fallback
+- **LLM**: Groq (OpenAI-compatible API) for chat/completions
+- **Embeddings**: Ollama `mxbai-embed-large`
+- **Vector Search**: Qdrant (RAG retrieval)
 - **PDF Processing**: pdf-parse library
 - **File Upload**: Multer with drag-and-drop support
 - **Containerization**: Docker & Docker Compose
@@ -27,7 +29,7 @@ A REST API built with the MERN stack that enables conversational interaction wit
 
 - Node.js (v16 or higher)
 - MongoDB (v6.0 or higher)
-- (Optional) OpenAI API key — only if you choose the OpenAI provider
+- Groq API key (for LLM via OpenAI-compatible endpoint)
 - Docker & Docker Compose (for containerized setup)
 
 ### Environment Setup
@@ -43,7 +45,7 @@ cd pdf-chat-api
 cp env.example .env
 ```
 
-3. Update `.env` with your configuration (Ollama by default):
+3. Update `.env` with your configuration (Groq LLM + Ollama embeddings by default):
 ```env
 PORT=5000
 NODE_ENV=development
@@ -51,15 +53,27 @@ MONGODB_URI=mongodb://localhost:27017/pdf-chat
 MAX_FILE_SIZE=10485760
 UPLOAD_PATH=./uploads
 
-# AI Provider (default: ollama)
-AI_PROVIDER=ollama
-OLLAMA_BASE_URL=http://localhost:11434
-MODEL_NAME=llama3.1:8b-instruct
+# AI Provider
+AI_PROVIDER=openai
 
-# Optional: OpenAI fallback
-OPENAI_API_KEY=
-OPENAI_BASE_URL=https://api.openai.com/v1
-OPENAI_MODEL=gpt-3.5-turbo
+# Groq (OpenAI-compatible) LLM
+OPENAI_API_KEY=your_groq_api_key
+OPENAI_BASE_URL=https://api.groq.com/openai/v1
+OPENAI_MODEL=meta-llama/llama-4-scout-17b-16e-instruct
+
+# Embeddings via Ollama
+OLLAMA_BASE_URL=http://localhost:11434
+MODEL_NAME=llama3.2:3b
+EMBEDDING_MODEL=mxbai-embed-large
+
+# Qdrant Vector DB
+QDRANT_URL=http://localhost:6333
+QDRANT_COLLECTION=pdf_chunks
+
+# Prompt size caps (prevent 413 from provider)
+MAX_CONTEXT_CHUNKS=3
+CONTEXT_CHARS_PER_CHUNK=1200
+HISTORY_MESSAGES=4
 ```
 
 ### Installation & Running
@@ -94,7 +108,7 @@ npm run client  # Frontend only
 
 #### Option 2: Docker Compose (Recommended)
 
-1. Build and start all services (includes MongoDB, Backend, Frontend, and Ollama):
+1. Build and start all services (MongoDB, Qdrant, Ollama, Ollama init, Backend, Frontend):
 ```bash
 docker-compose up --build
 ```
@@ -103,8 +117,13 @@ docker-compose up --build
 - Frontend: http://localhost:3000
 - Backend API: http://localhost:5000
 - MongoDB: localhost:27017
-- Ollama API: http://localhost:11434
- - (Qdrant removed)
+- Ollama: http://localhost:11434
+- Qdrant: http://localhost:6333
+
+Note: The `ollama-init` service waits for Ollama and ensures `mxbai-embed-large` is pulled automatically. If you prefer to pull manually:
+```bash
+docker exec -it pdf-chat-ollama ollama pull mxbai-embed-large
+```
 
 3. Pull embedding model into Ollama (first run only):
 ```bash
@@ -140,18 +159,9 @@ curl -X POST http://localhost:5000/api/upload \
   "status": "completed",
   "pages": 15,
   "fileSize": 2048576,
-  "filename": "document.pdf"
+  "filename": "document.pdf",
+  "uploadDate": "2025-08-10T12:34:56.789Z"
 }
-```
-
-#### POST /api/upload/url
-Upload a PDF from URL.
-
-**Request:**
-```bash
-curl -X POST http://localhost:5000/api/upload/url \
-  -H "Content-Type: application/json" \
-  -d '{"url": "https://arxiv.org/pdf/2506.23908"}'
 ```
 
 #### GET /api/upload/:documentId
@@ -165,12 +175,14 @@ Get document status and information.
   "status": "completed",
   "pages": 15,
   "fileSize": 2048576,
-  "uploadDate": "2024-01-15T10:30:00Z",
+  "uploadDate": "2025-08-10T12:34:56.789Z",
   "metadata": {
     "title": "Document Title",
     "authors": ["Author Name"],
     "keywords": []
-  }
+  },
+  "chunkCount": 128,
+  "lastEmbeddedAt": "2025-08-10T12:35:10.000Z"
 }
 ```
 
@@ -195,16 +207,16 @@ curl -X POST http://localhost:5000/api/chat \
 {
   "success": true,
   "sessionId": "session-uuid",
-  "answer": "The paper was written by Dr. John Smith from Stanford University...",
+  "answer": "...",
   "sources": [
     {
       "page": 1,
-      "text": "Author information from page 1...",
-      "confidence": 0.8
+      "text": "Relevant excerpt ...",
+      "confidence": 0.73
     }
   ],
   "documentId": "uuid-here",
-  "timestamp": "2024-01-15T10:30:00Z"
+  "timestamp": "2025-08-10T12:36:00.000Z"
 }
 ```
 
@@ -304,7 +316,11 @@ This setup queries the LLM using Groq’s OpenAI-compatible API and generates em
   - `QDRANT_COLLECTION=pdf_chunks`
 
 Chunking strategy:
-- Fixed 2000-token chunks with 200-token overlap using a tokenizer to approximate tokens.
+- Fixed 2000-token chunks with 200-token overlap (token-aware splitter). Each chunk stored as `{ text: [string], page: null, chunkIndex }`.
+
+RAG flow:
+- On upload: extract PDF text, split into chunks, embed with Ollama `mxbai-embed-large`, upsert into Qdrant.
+- On chat: retrieve top-k from Qdrant; cap and truncate context using `MAX_CONTEXT_CHUNKS` and `CONTEXT_CHARS_PER_CHUNK`; send to Groq LLM.
 
 ## Development
 
@@ -332,8 +348,9 @@ The codebase follows these practices:
 - File size limits (10MB max)
 - Database indexing for queries
 - Efficient PDF text extraction
-- Conversation history management
-- Source citation accuracy
+- Conversation history management with size caps
+- Source citation accuracy via stored chunk excerpts
+- Prompt size caps to avoid provider 413 errors (see env vars above)
 
 ## Deployment
 
