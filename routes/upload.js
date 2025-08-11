@@ -1,3 +1,4 @@
+// Upload routes: handles PDF ingestion from file and URL, extraction, chunking, and vector upsert
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
@@ -12,7 +13,110 @@ const { TextDecoder } = require('util');
 
 const router = express.Router();
 
+/**
+ * @swagger
+ * /api/upload:
+ *   post:
+ *     summary: Upload and process a PDF file
+ *     description: |
+ *       Uploads a PDF file, extracts text content, chunks it into 2000-token segments,
+ *       generates embeddings, and stores them in the vector database for RAG.
+ *       
+ *       The file is processed asynchronously and stored in the uploads directory.
+ *       Text extraction uses pdf-parse library and chunking uses tiktoken tokenization.
+ *       
+ *       **Supported file types:** PDF only
+ *       **Maximum file size:** 10MB
+ *       **Chunking strategy:** 2000 tokens per chunk with 200 token overlap
+ *       
+ *     tags: [Upload]
+ *     consumes:
+ *       - multipart/form-data
+ *     parameters:
+ *       - in: formData
+ *         name: pdf
+ *         type: file
+ *         required: true
+ *         description: PDF file to upload and process
+ *     responses:
+ *       201:
+ *         description: PDF successfully uploaded and processed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 documentId:
+ *                   type: string
+ *                   format: uuid
+ *                   description: Unique identifier for the uploaded document
+ *                   example: "123e4567-e89b-12d3-a456-426614174000"
+ *                 message:
+ *                   type: string
+ *                   example: "PDF uploaded and processed successfully"
+ *                 status:
+ *                   type: string
+ *                   enum: [processing, completed, failed]
+ *                   example: "completed"
+ *                 pages:
+ *                   type: integer
+ *                   description: Number of pages extracted from the PDF
+ *                   example: 15
+ *                 fileSize:
+ *                   type: integer
+ *                   description: File size in bytes
+ *                   example: 2048576
+ *                 filename:
+ *                   type: string
+ *                   description: Original filename
+ *                   example: "research_paper.pdf"
+ *                 uploadDate:
+ *                   type: string
+ *                   format: date-time
+ *                   description: ISO timestamp of upload
+ *                   example: "2024-01-15T10:30:00.000Z"
+ *       400:
+ *         description: Bad request - no file provided or invalid file type
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "No PDF file provided"
+ *       500:
+ *         description: Internal server error during processing
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Failed to process PDF"
+ *     x-code-samples:
+ *       - lang: curl
+ *         source: |
+ *           curl -X POST http://localhost:5000/api/upload \
+ *             -F "pdf=@document.pdf" \
+ *             -H "Accept: application/json"
+ *       - lang: JavaScript
+ *         source: |
+ *           const formData = new FormData();
+ *           formData.append('pdf', fileInput.files[0]);
+ *           
+ *           const response = await fetch('/api/upload', {
+ *             method: 'POST',
+ *             body: formData
+ *           });
+ *           const result = await response.json();
+ */
 // Multer configuration
+// Stores the uploaded PDF to disk before parsing
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadsDir = path.join(__dirname, '..', 'uploads');
@@ -42,6 +146,7 @@ const upload = multer({
 });
 
 // Helper function to download PDF from URL
+// Saves the response bytes to uploads folder; returns path info
 async function downloadPDF(url) {
   try {
     const response = await axios({
@@ -67,6 +172,7 @@ async function downloadPDF(url) {
 }
 
 // Helper function to extract text from PDF
+// Uses pdf-parse to convert PDF to raw text; includes basic metadata
 async function extractTextFromPDF(filePath) {
   try {
     const dataBuffer = fs.readFileSync(filePath);
@@ -83,6 +189,7 @@ async function extractTextFromPDF(filePath) {
 }
 
 // Token-based chunking: 2000 tokens per chunk, 200 token overlap (pre-recursive version)
+// Converts text to tokens, slices windows with overlap, decodes to string chunks
 function chunkTextByTokens(rawText, opts = { chunkTokens: 2000, overlapTokens: 200, model: 'gpt-3.5-turbo' }) {
   const encoder = encoding_for_model(opts.model || 'gpt-3.5-turbo');
   try {
@@ -122,6 +229,108 @@ function chunkTextByTokens(rawText, opts = { chunkTokens: 2000, overlapTokens: 2
 }
 
 
+/**
+ * @swagger
+ * /api/upload:
+ *   post:
+ *     summary: Upload and process a PDF file
+ *     description: |
+ *       Uploads a PDF file, extracts text content, chunks it into 2000-token segments,
+ *       generates embeddings, and stores them in the vector database for RAG.
+ *       
+ *       The file is processed asynchronously and stored in the uploads directory.
+ *       Text extraction uses pdf-parse library and chunking uses tiktoken tokenization.
+ *       
+ *       **Supported file types:** PDF only
+ *       **Maximum file size:** 10MB
+ *       **Chunking strategy:** 2000 tokens per chunk with 200 token overlap
+ *       
+ *     tags: [Upload]
+ *     consumes:
+ *       - multipart/form-data
+ *     parameters:
+ *       - in: formData
+ *         name: pdf
+ *         type: file
+ *         required: true
+ *         description: PDF file to upload and process
+ *     responses:
+ *       201:
+ *         description: PDF successfully uploaded and processed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 documentId:
+ *                   type: string
+ *                   format: uuid
+ *                   description: Unique identifier for the uploaded document
+ *                   example: "123e4567-e89b-12d3-a456-426614174000"
+ *                 message:
+ *                   type: string
+ *                   example: "PDF uploaded and processed successfully"
+ *                 status:
+ *                   type: string
+ *                   enum: [processing, completed, failed]
+ *                   example: "completed"
+ *                 pages:
+ *                   type: integer
+ *                   description: Number of pages extracted from the PDF
+ *                   example: 15
+ *                 fileSize:
+ *                   type: integer
+ *                   description: File size in bytes
+ *                   example: 2048576
+ *                 filename:
+ *                   type: string
+ *                   description: Original filename
+ *                   example: "research_paper.pdf"
+ *                 uploadDate:
+ *                   type: string
+ *                   format: date-time
+ *                   description: ISO timestamp of upload
+ *                   example: "2024-01-15T10:30:00.000Z"
+ *       400:
+ *         description: Bad request - no file provided or invalid file type
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "No PDF file provided"
+ *       500:
+ *         description: Internal server error during processing
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Failed to process PDF"
+ *     x-code-samples:
+ *       - lang: curl
+ *         source: |
+ *           curl -X POST http://localhost:5000/api/upload \
+ *             -F "pdf=@document.pdf" \
+ *             -H "Accept: application/json"
+ *       - lang: JavaScript
+ *         source: |
+ *           const formData = new FormData();
+ *           formData.append('pdf', fileInput.files[0]);
+ *           
+ *           const response = await fetch('/api/upload', {
+ *             method: 'POST',
+ *             body: formData
+ *           });
+ *           const result = await response.json();
+ */
 // POST /api/upload - Upload PDF file
 router.post('/', upload.single('pdf'), async (req, res) => {
   try {
@@ -147,6 +356,7 @@ router.post('/', upload.single('pdf'), async (req, res) => {
       pages: pdfData.pages,
       status: 'completed',
       embeddingStatus: 'pending',
+      uploadDate: new Date(), // Explicitly set upload date
       metadata: {
         title: pdfData.info?.Title || req.file.originalname,
         authors: pdfData.info?.Author ? [pdfData.info.Author] : [],
@@ -179,7 +389,8 @@ router.post('/', upload.single('pdf'), async (req, res) => {
       status: 'completed',
       pages: pdfData.pages,
       fileSize: fileSize,
-      filename: req.file.originalname
+      filename: req.file.originalname,
+      uploadDate: document.uploadDate ? document.uploadDate.toISOString() : new Date().toISOString()
     });
 
   } catch (error) {
@@ -191,6 +402,112 @@ router.post('/', upload.single('pdf'), async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/upload/url:
+ *   post:
+ *     summary: Upload and process a PDF from URL
+ *     description: |
+ *       Downloads a PDF from a provided URL, extracts text content, chunks it,
+ *       generates embeddings, and stores them in the vector database.
+ *       
+ *       **Supported protocols:** HTTP/HTTPS
+ *       **Timeout:** 30 seconds for download
+ *       **Chunking strategy:** Same as file upload (2000 tokens, 200 overlap)
+ *       
+ *     tags: [Upload]
+ *     consumes:
+ *       - application/json
+ *     parameters:
+ *       - in: body
+ *         name: body
+ *         required: true
+ *         schema:
+ *           type: object
+ *           required:
+ *             - url
+ *           properties:
+ *             url:
+ *               type: string
+ *               format: uri
+ *               description: URL of the PDF to download
+ *               example: "https://arxiv.org/pdf/2506.23908"
+ *     responses:
+ *       201:
+ *         description: PDF successfully downloaded and processed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 documentId:
+ *                   type: string
+ *                   format: uuid
+ *                   example: "123e4567-e89b-12d3-a456-426614174000"
+ *                 message:
+ *                   type: string
+ *                   example: "PDF downloaded and processed successfully"
+ *                 status:
+ *                   type: string
+ *                   enum: [processing, completed, failed]
+ *                   example: "completed"
+ *                 pages:
+ *                   type: integer
+ *                   example: 12
+ *                 fileSize:
+ *                   type: integer
+ *                   example: 1536000
+ *                 filename:
+ *                   type: string
+ *                   example: "2506.23908.pdf"
+ *                 sourceUrl:
+ *                   type: string
+ *                   format: uri
+ *                   example: "https://arxiv.org/pdf/2506.23908"
+ *                 uploadDate:
+ *                   type: string
+ *                   format: date-time
+ *                   example: "2024-01-15T10:30:00.000Z"
+ *       400:
+ *         description: Bad request - invalid URL or missing parameter
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Invalid URL provided"
+ *       500:
+ *         description: Internal server error during download or processing
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Failed to download PDF"
+ *     x-code-samples:
+ *       - lang: curl
+ *         source: |
+ *           curl -X POST http://localhost:5000/api/upload/url \
+ *             -H "Content-Type: application/json" \
+ *             -d '{"url": "https://arxiv.org/pdf/2506.23908"}'
+ *       - lang: JavaScript
+ *         source: |
+ *           const response = await fetch('/api/upload/url', {
+ *             method: 'POST',
+ *             headers: { 'Content-Type': 'application/json' },
+ *             body: JSON.stringify({
+ *               url: 'https://arxiv.org/pdf/2506.23908'
+ *             })
+ *           });
+ *           const result = await response.json();
+ */
 // POST /api/upload/url - Upload PDF from URL
 router.post('/url', async (req, res) => {
   try {
@@ -200,9 +517,9 @@ router.post('/url', async (req, res) => {
       return res.status(400).json({ error: 'URL is required' });
     }
 
-    if (!url.toLowerCase().endsWith('.pdf')) {
-      return res.status(400).json({ error: 'URL must point to a PDF file' });
-    }
+    // if (!url.toLowerCase().endsWith('.pdf')) {
+    //   return res.status(400).json({ error: 'URL must point to a PDF file' });
+    // }
 
     const documentId = uuidv4();
 
@@ -223,9 +540,10 @@ router.post('/url', async (req, res) => {
       pages: pdfData.pages,
       status: 'completed',
       embeddingStatus: 'pending',
+      uploadDate: new Date(), // Explicitly set upload date
       metadata: {
         title: pdfData.info?.Title || path.basename(url),
-        authors: pdfData.info?.Author ? [pdfData.info.Author] : [],
+        authors: pdfData.info.Author ? [pdfData.info.Author] : [],
         keywords: []
       }
     });
@@ -251,7 +569,8 @@ router.post('/url', async (req, res) => {
       pages: pdfData.pages,
       fileSize: fileData.fileSize,
       filename: path.basename(url),
-      sourceUrl: url
+      sourceUrl: url,
+      uploadDate: document.uploadDate ? document.uploadDate.toISOString() : new Date().toISOString()
     });
 
   } catch (error) {
@@ -263,6 +582,110 @@ router.post('/url', async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/upload/{documentId}:
+ *   get:
+ *     summary: Get document status and metadata
+ *     description: |
+ *       Retrieves the current status, metadata, and processing information
+ *       for a previously uploaded document.
+ *       
+ *       **Returns:** Document info, processing status, chunk count, and embedding status
+ *       
+ *     tags: [Upload]
+ *     parameters:
+ *       - in: path
+ *         name: documentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Unique identifier of the document
+ *         example: "123e4567-e89b-12d3-a456-426614174000"
+ *     responses:
+ *       200:
+ *         description: Document information retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 documentId:
+ *                   type: string
+ *                   format: uuid
+ *                   example: "123e4567-e89b-12d3-a456-426614174000"
+ *                 filename:
+ *                   type: string
+ *                   example: "research_paper.pdf"
+ *                 status:
+ *                   type: string
+ *                   enum: [processing, completed, failed]
+ *                   example: "completed"
+ *                 pages:
+ *                   type: integer
+ *                   example: 15
+ *                 fileSize:
+ *                   type: integer
+ *                   example: 2048576
+ *                 uploadDate:
+ *                   type: string
+ *                   format: date-time
+ *                   example: "2024-01-15T10:30:00.000Z"
+ *                 metadata:
+ *                   type: object
+ *                   properties:
+ *                     title:
+ *                       type: string
+ *                       example: "Research Paper Title"
+ *                     authors:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                       example: ["John Doe", "Jane Smith"]
+ *                     keywords:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                       example: ["AI", "Machine Learning"]
+ *                 chunkCount:
+ *                   type: integer
+ *                   description: Number of text chunks created for RAG
+ *                   example: 25
+ *                 lastEmbeddedAt:
+ *                   type: string
+ *                   format: date-time
+ *                   description: Timestamp of last embedding generation
+ *                   example: "2024-01-15T10:31:00.000Z"
+ *       404:
+ *         description: Document not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Document not found"
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Failed to retrieve document"
+ *     x-code-samples:
+ *       - lang: curl
+ *         source: |
+ *           curl http://localhost:5000/api/upload/123e4567-e89b-12d3-a456-426614174000
+ *       - lang: JavaScript
+ *         source: |
+ *           const response = await fetch('/api/upload/123e4567-e89b-12d3-a456-426614174000');
+ *           const document = await response.json();
+ */
 // GET /api/upload/:documentId - Get document status
 router.get('/:documentId', async (req, res) => {
   try {
@@ -280,10 +703,10 @@ router.get('/:documentId', async (req, res) => {
       status: document.status,
       pages: document.pages,
       fileSize: document.fileSize,
-      uploadDate: document.uploadDate,
+      uploadDate: document.uploadDate ? document.uploadDate.toISOString() : new Date().toISOString(),
       metadata: document.metadata,
       chunkCount: document.chunkCount,
-      lastEmbeddedAt: document.lastEmbeddedAt
+      lastEmbeddedAt: document.lastEmbeddedAt ? document.lastEmbeddedAt.toISOString() : null
     });
 
   } catch (error) {

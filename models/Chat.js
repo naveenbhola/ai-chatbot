@@ -1,3 +1,9 @@
+// Mongoose model to store chat sessions per document
+// Structure:
+// - sessionId: UUID to track a conversation thread
+// - documentId: reference to the ingested document
+// - messages: array of message objects with role, content, and optional sources
+// - timestamps: createdAt/updatedAt maintained for sorting and housekeeping
 const mongoose = require('mongoose');
 
 const messageSchema = new mongoose.Schema({

@@ -1,15 +1,17 @@
-# PDF Chat API
+# Chat with PDF Document
 
-A REST API built with the MERN stack that enables conversational interaction with PDF documents. The system provides intelligent document processing and accurate question-answering capabilities using OpenAI's GPT models.
+A Chat Platform built with the MERN stack that enables conversational interaction with PDF documents. The system provides intelligent document processing and accurate question-answering capabilities using Retrieval Augmented Generation (RAG) with Groq LLM and Ollama embeddings.
 
 ## Features
 
-- **PDF Upload & Processing**: Upload PDF files for document ingestion
+- **PDF Upload & Processing**: Upload PDF files or provide URLs for document ingestion
 - **Intelligent Chat Interface**: Ask questions about uploaded documents with AI-powered responses
 - **Source Citations**: Get answers with relevant page references and text excerpts
 - **Conversation History**: Maintain chat sessions with follow-up question support
 - **Modern UI**: Beautiful React frontend with drag-and-drop file upload
 - **Docker Support**: Complete containerized setup with Docker Compose
+- **Vector Database**: Qdrant for semantic search and RAG functionality
+- **AI Integration**: Groq for LLM, Ollama for embeddings
 
 ## Tech Stack
 
@@ -21,7 +23,7 @@ A REST API built with the MERN stack that enables conversational interaction wit
 - **PDF Processing**: pdf-parse library
 - **File Upload**: Multer with drag-and-drop support
 - **Containerization**: Docker & Docker Compose
- - (Optional RAG vector search removed in this version)
+- **API Documentation**: Swagger/OpenAPI with JSDoc annotations
 
 ## Quick Start
 
@@ -137,6 +139,66 @@ docker exec -it pdf-chat-ollama ollama pull mistral:7b-instruct
 docker exec -it pdf-chat-ollama ollama pull qwen2.5:7b-instruct
 ```
 
+## API Documentation (Swagger/OpenAPI)
+
+### Swagger Setup
+
+The API includes comprehensive Swagger/OpenAPI documentation with JSDoc annotations throughout the codebase. The Swagger configuration is defined in `swagger.js` and includes:
+
+- **API Information**: Title, version, description, and contact details
+- **Server Configuration**: Development and production server URLs
+- **Tag Organization**: Upload, Chat, Vector, and System operations
+- **Schema Definitions**: Error and success response formats
+- **JSDoc Integration**: Automatic documentation from code comments
+
+### Accessing Swagger Documentation
+
+The Swagger UI interface is now fully integrated and accessible:
+
+- **Swagger UI**: http://localhost:5000/api-docs
+- **OpenAPI JSON**: http://localhost:5000/api-docs.json
+
+The Swagger UI provides:
+- Interactive API testing directly from the browser
+- Request/response examples and schemas
+- Code samples in cURL and JavaScript
+- Automatic request/response validation
+- Export options for OpenAPI specification
+
+### Current Swagger Coverage
+
+The following endpoints are documented with JSDoc annotations:
+
+#### Upload Endpoints
+- `POST /api/upload` - PDF file upload
+- `POST /api/upload/url` - PDF URL ingestion
+- `GET /api/upload/:documentId` - Document status
+
+#### Chat Endpoints
+- `POST /api/chat` - AI chat with documents
+- `GET /api/chat/:sessionId` - Chat session history
+- `GET /api/chat/document/:documentId` - Document chat sessions
+- `DELETE /api/chat/:sessionId` - Delete chat session
+
+#### System Endpoints
+- `GET /api/health` - API health check
+
+#### Vector Service
+- Embedding generation
+- Vector database operations
+- RAG functionality
+
+### Swagger Features
+
+- **Interactive Testing**: Test API endpoints directly from the browser
+- **Request/Response Examples**: See actual data formats
+- **Authentication**: Ready for future API key integration
+- **Code Samples**: cURL and JavaScript examples
+- **Schema Validation**: Automatic request/response validation
+- **Export Options**: Download OpenAPI specification for external tools
+- **Custom Styling**: Clean, branded interface without default Swagger topbar
+- **Filtering**: Search and filter endpoints by tags or keywords
+
 ## API Endpoints
 
 ### Document Upload
@@ -162,6 +224,16 @@ curl -X POST http://localhost:5000/api/upload \
   "filename": "document.pdf",
   "uploadDate": "2025-08-10T12:34:56.789Z"
 }
+```
+
+#### POST /api/upload/url
+Upload a PDF from URL.
+
+**Request:**
+```bash
+curl -X POST http://localhost:5000/api/upload/url \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://arxiv.org/pdf/2506.23908"}'
 ```
 
 #### GET /api/upload/:documentId
@@ -242,22 +314,6 @@ Check API health status.
 }
 ```
 
-## Test Questions
-
-The system is designed to handle these example interactions with the test document:
-
-1. **"Who wrote this paper and where do they work?"**
-   - Extracts author information and affiliations
-
-2. **"What problems do the authors identify with current AI systems?"**
-   - Identifies limitations and issues discussed in the paper
-
-3. **"What does Theorem 3.2 state?"**
-   - Locates and explains specific mathematical content
-
-4. **"How does statistical learning differ from exact learning?"**
-   - Compares and contrasts the two learning paradigms
-
 ## Frontend Usage
 
 1. **Upload Document**: Drag and drop a PDF file or provide a URL
@@ -276,12 +332,15 @@ pdf-chat-api/
 ├── docker-compose.yml       # Docker Compose configuration
 ├── Dockerfile.backend       # Backend Dockerfile
 ├── mongo-init.js            # MongoDB initialization script
+├── swagger.js               # Swagger/OpenAPI configuration
 ├── models/                  # MongoDB schemas
 │   ├── Document.js
 │   └── Chat.js
 ├── routes/                  # API routes
 │   ├── upload.js
 │   └── chat.js
+├── services/                # Business logic services
+│   └── vector.js           # Vector DB and embedding operations
 ├── uploads/                 # PDF file storage
 └── client/                  # React frontend
     ├── package.json
@@ -301,7 +360,7 @@ pdf-chat-api/
 
 ## LLM via Groq (online) + Embeddings via Ollama
 
-This setup queries the LLM using Groq’s OpenAI-compatible API and generates embeddings locally via Ollama:
+This setup queries the LLM using Groq's OpenAI-compatible API and generates embeddings locally via Ollama:
 
 - Set `.env`:
   - `AI_PROVIDER=openai`
@@ -337,11 +396,10 @@ cd client && npm test
 ### Code Quality
 
 The codebase follows these practices:
-- Clean, commented implementation
+- Clean, commented implementation with JSDoc annotations
 - Error handling and validation
 - RESTful API design
-- Responsive UI with modern UX
-- Security best practices
+- Swagger/OpenAPI documentation integration
 
 ### Performance Considerations
 
@@ -350,7 +408,7 @@ The codebase follows these practices:
 - Efficient PDF text extraction
 - Conversation history management with size caps
 - Source citation accuracy via stored chunk excerpts
-- Prompt size caps to avoid provider 413 errors (see env vars above)
+- Context size management to prevent LLM token limit errors
 
 ## Deployment
 
@@ -379,7 +437,8 @@ docker build -f client/Dockerfile.frontend -t pdf-chat-frontend .
 2. Create a feature branch
 3. Make your changes
 4. Add tests if applicable
-5. Submit a pull request
+5. Update Swagger documentation for new endpoints
+6. Submit a pull request
 
 ## License
 
@@ -388,10 +447,11 @@ MIT License - see LICENSE file for details
 ## Support
 
 For issues and questions:
-- Check the API documentation
+- Check the API documentation at `/api-docs`
 - Review the test examples
 - Ensure all dependencies are installed
 - Verify environment configuration
+- Check Swagger documentation for endpoint details
 
 ## Acknowledgments
 
@@ -399,4 +459,5 @@ For issues and questions:
 - MongoDB for database solution
 - React and Express communities
 - PDF parsing libraries
+- Swagger/OpenAPI community for documentation tools
 

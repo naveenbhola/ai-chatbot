@@ -1,3 +1,12 @@
+// Mongoose model to persist uploaded document metadata and extracted content
+// Fields:
+// - documentId: stable UUID to reference this document externally
+// - filename/originalName: stored + original upload names
+// - filePath/size: storage location and size in bytes
+// - content: extracted text (for fallback/search)
+// - pages: number of pages extracted
+// - uploadDate/status: ingestion lifecycle
+// - metadata: optional PDF metadata
 const mongoose = require('mongoose');
 
 const documentSchema = new mongoose.Schema({
@@ -32,7 +41,8 @@ const documentSchema = new mongoose.Schema({
   },
   uploadDate: {
     type: Date,
-    default: Date.now
+    default: Date.now,
+    required: true
   },
   status: {
     type: String,
@@ -49,6 +59,15 @@ const documentSchema = new mongoose.Schema({
 }, {
   timestamps: true
 });
+
+// Virtual getter to ensure uploadDate is always returned as ISO string
+documentSchema.virtual('uploadDateISO').get(function() {
+  return this.uploadDate ? this.uploadDate.toISOString() : null;
+});
+
+// Ensure virtual fields are included when converting to JSON
+documentSchema.set('toJSON', { virtuals: true });
+documentSchema.set('toObject', { virtuals: true });
 
 // Index for better query performance
 documentSchema.index({ documentId: 1 });

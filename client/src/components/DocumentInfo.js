@@ -109,7 +109,7 @@ const DocumentInfo = ({ document, onNewChat }) => {
         </div>
 
         {/* Quick Actions */}
-        <div className="pt-2">
+        {/* <div className="pt-2">
           <h3 className="text-sm font-medium text-gray-700 mb-2">Quick Questions</h3>
           <div className="space-y-2">
             <button
@@ -138,7 +138,7 @@ const DocumentInfo = ({ document, onNewChat }) => {
               Summarize the methodology
             </button>
           </div>
-        </div>
+        </div> */}
       </div>
     </div>
   );

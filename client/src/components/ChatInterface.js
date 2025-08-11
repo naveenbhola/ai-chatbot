@@ -110,7 +110,6 @@ const ChatInterface = ({ documentId, sessionId, onSessionChange }) => {
             <ul className="text-sm text-gray-400 mt-1">
               <li>• "Who wrote this paper and where do they work?"</li>
               <li>• "What problems do the authors identify?"</li>
-              <li>• "What does Theorem 3.2 state?"</li>
             </ul>
           </div>
         ) : (
