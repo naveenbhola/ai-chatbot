@@ -71,7 +71,7 @@ Edit the `swaggerUi.setup()` options in `server.js`:
 ```javascript
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs, {
   customCss: '.swagger-ui .topbar { display: none }',
-  customSiteTitle: 'PDF Chat API Documentation',
+  customSiteTitle: 'Documentation for Chat with PDF Documents',
   swaggerOptions: {
     docExpansion: 'list',
     filter: true

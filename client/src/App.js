@@ -123,7 +123,7 @@ function App() {
 
         {/* Footer */}
         <footer className="mt-16 text-center text-gray-500">
-          <p>PDF Chat API - Built with MERN Stack</p>
+          <p>Chat with PDF Documents</p>
         </footer>
       </div>
     </div>

@@ -1,5 +1,5 @@
 /**
- * Swagger/OpenAPI configuration for PDF Chat API
+ * Swagger/OpenAPI configuration for Chat with PDF Documents
  * This file defines the main API specification that can be used with
  * swagger-ui-express or other OpenAPI tools to generate interactive documentation.
  */
@@ -10,16 +10,15 @@ const options = {
   definition: {
     openapi: '3.0.0',
     info: {
-      title: 'PDF Chat API',
+      title: 'Chat with PDF Documents',
       version: '1.0.0',
       description: `
-# PDF Chat API
 
 A MERN stack REST API for conversational interaction with PDF documents using Retrieval Augmented Generation (RAG).
 
 ## Features
 
-- **PDF Upload & Processing**: Upload PDF files for document ingestion
+- **PDF Upload & Processing**: Upload PDF files or provide URLs for document ingestion
 - **Intelligent Chat Interface**: Ask questions about uploaded documents with AI-powered responses
 - **Source Citations**: Get answers with relevant page references and text excerpts
 - **Vector Database**: Uses Qdrant for semantic search and RAG

@@ -130,7 +130,7 @@ const ChatInterface = ({ documentId, sessionId, onSessionChange }) => {
                 </div>
                 
                 {/* Sources for AI messages */}
-                {message.role === 'assistant' && message.sources && message.sources.length > 0 && (
+                {/* {message.role === 'assistant' && message.sources && message.sources.length > 0 && (
                   <div className="mt-3 pt-3 border-t border-gray-200">
                     <p className="text-xs text-gray-500 mb-2">Sources:</p>
                     {message.sources.map((source, idx) => (
@@ -139,7 +139,7 @@ const ChatInterface = ({ documentId, sessionId, onSessionChange }) => {
                       </div>
                     ))}
                   </div>
-                )}
+                )} */}
                 
                 <div className={`text-xs mt-2 ${
                   message.role === 'user' ? 'text-primary-100' : 'text-gray-500'

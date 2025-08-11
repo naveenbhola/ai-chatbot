@@ -310,7 +310,7 @@ Check API health status.
 ```json
 {
   "status": "OK",
-  "message": "PDF Chat API is running"
+  "message": "Chat with PDF Documents is running"
 }
 ```
 

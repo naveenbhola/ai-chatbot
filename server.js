@@ -1,4 +1,4 @@
-// Express server entrypoint for the PDF Chat API
+// Express server entrypoint for the Chat with PDF DOcuments
 // Responsibilities:
 // - Initialize Express middleware (CORS, JSON body parsing)
 // - Set up upload directory path used by routes
@@ -86,7 +86,7 @@ app.use('/api/chat', chatRoutes);
 // Serve interactive API documentation at /api-docs
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs, {
   customCss: '.swagger-ui .topbar { display: none }',
-  customSiteTitle: 'PDF Chat API Documentation',
+  customSiteTitle: 'Documentation for Chat with PDF Documents',
   customfavIcon: '/favicon.ico',
   swaggerOptions: {
     docExpansion: 'list',
@@ -125,7 +125,7 @@ app.get('/api-docs.json', (req, res) => {
  *                   example: "OK"
  *                 message:
  *                   type: string
- *                   example: "PDF Chat API is running"
+ *                   example: "Chat with PDF Documents is running"
  *     x-code-samples:
  *       - lang: curl
  *         source: |
@@ -137,7 +137,7 @@ app.get('/api-docs.json', (req, res) => {
  */
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', message: 'PDF Chat API is running' });
+  res.json({ status: 'OK', message: 'Chat with PDF Documents is running' });
 });
 
 // Error handling middleware
