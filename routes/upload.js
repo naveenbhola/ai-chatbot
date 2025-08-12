@@ -369,7 +369,7 @@ router.post('/', upload.single('pdf'), async (req, res) => {
     // Embeddings + Qdrant upsert
     try {
       console.log('innn try================');
-      const chunks = chunkTextByTokens(pdfData.text, { chunkTokens: 400, overlapTokens: 50, model: 'gpt-3.5-turbo' });
+      const chunks = chunkTextByTokens(pdfData.text, { chunkTokens: 2000, overlapTokens: 200, model: 'gpt-3.5-turbo' });
       console.log(chunks);
       console.log('==============');
       const result = await upsertChunks(documentId, chunks, { filename: req.file.originalname });
@@ -552,7 +552,7 @@ router.post('/url', async (req, res) => {
 
     // Embeddings + Qdrant upsert
     try {
-      const chunks = chunkTextByTokens(pdfData.text, { chunkTokens: 400, overlapTokens: 50, model: 'gpt-3.5-turbo' });
+      const chunks = chunkTextByTokens(pdfData.text, { chunkTokens: 2000, overlapTokens: 200, model: 'gpt-3.5-turbo' });
       const result = await upsertChunks(documentId, chunks, { filename: path.basename(url), sourceUrl: url });
       document.chunkCount = result.upserted;
       document.lastEmbeddedAt = new Date();
