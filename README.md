@@ -13,6 +13,42 @@ A Chat Platform built with the MERN stack that enables conversational interactio
 - **Vector Database**: Qdrant for semantic search and RAG functionality
 - **AI Integration**: Groq for LLM, Ollama for embeddings
 
+## User Interface
+
+The application features two main interfaces that work seamlessly together to provide an intuitive document chat experience.
+
+### PDF Upload Interface
+
+![Upload PDF Interface](Upload%20PDF%20Interface.png)
+
+The **PDF Upload Interface** serves as the entry point for document ingestion:
+
+- **Drag & Drop Zone**: A prominent, visually appealing area where users can drag and drop PDF files directly from their file system
+- **File Selection Button**: Alternative method to browse and select PDF files through the system file picker
+- **URL Input Field**: Option to ingest PDFs directly from web URLs, supporting both HTTP and HTTPS links
+- **Upload Progress**: Real-time progress indicator showing file upload status and processing stages
+- **File Validation**: Automatic validation of file type, size, and format before processing
+- **Success Feedback**: Clear confirmation messages and document metadata display after successful upload
+- **Error Handling**: User-friendly error messages for failed uploads with actionable suggestions
+
+The interface is designed with a clean, modern aesthetic using Tailwind CSS, featuring smooth animations and responsive design that works across all device sizes.
+
+### Chat Interface
+
+![Chat Interface](Chat%20Interface.png)
+
+The **Chat Interface** provides the conversational experience for interacting with uploaded documents:
+
+- **Document Context**: Header section displaying the currently active document name and status
+- **Chat History**: Scrollable conversation area showing the complete question-answer dialogue
+- **Message Bubbles**: Distinct styling for user questions (right-aligned) and AI responses (left-aligned)
+- **Input Area**: Clean text input field with send button for asking questions
+- **Session Management**: Options to start new chat sessions or continue existing conversations
+- **Real-time Responses**: Live typing indicators and streaming response updates
+
+The chat interface maintains context across sessions and provides intelligent follow-up question support, making it easy to have natural conversations about document content.
+
+
 ## Tech Stack
 
 - **Backend**: Node.js, Express.js, MongoDB, Mongoose
