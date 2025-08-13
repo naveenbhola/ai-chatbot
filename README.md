@@ -101,7 +101,6 @@ OPENAI_MODEL=meta-llama/llama-4-scout-17b-16e-instruct
 
 # Embeddings via Ollama
 OLLAMA_BASE_URL=http://localhost:11434
-MODEL_NAME=llama3.2:3b
 EMBEDDING_MODEL=mxbai-embed-large
 
 # Qdrant Vector DB
@@ -109,7 +108,7 @@ QDRANT_URL=http://localhost:6333
 QDRANT_COLLECTION=pdf_chunks
 
 # Prompt size caps (prevent 413 from provider)
-MAX_CONTEXT_CHUNKS=3
+MAX_CONTEXT_CHUNKS=10
 CONTEXT_CHARS_PER_CHUNK=1200
 HISTORY_MESSAGES=4
 ```
