@@ -54,7 +54,7 @@ QDRANT_COLLECTION=pdf_chunks
 MONGODB_URI=mongodb://localhost:27017/pdf-chat
 
 # Prompt Sizing (to avoid 413 errors)
-MAX_CONTEXT_CHUNKS=3
+MAX_CONTEXT_CHUNKS=40
 CONTEXT_CHARS_PER_CHUNK=1200
 HISTORY_MESSAGES=4
 \`\`\`

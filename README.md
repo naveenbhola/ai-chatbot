@@ -108,7 +108,7 @@ QDRANT_URL=http://localhost:6333
 QDRANT_COLLECTION=pdf_chunks
 
 # Prompt size caps (prevent 413 from provider)
-MAX_CONTEXT_CHUNKS=10
+MAX_CONTEXT_CHUNKS=40
 CONTEXT_CHARS_PER_CHUNK=1200
 HISTORY_MESSAGES=4
 ```

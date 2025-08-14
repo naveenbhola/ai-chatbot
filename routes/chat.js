@@ -9,7 +9,7 @@ const { search: vectorSearch } = require('../services/vector');
 const router = express.Router();
 
 // Prompt sizing controls to avoid provider 413 errors
-const MAX_CONTEXT_CHUNKS = parseInt(process.env.MAX_CONTEXT_CHUNKS || '10', 10);
+const MAX_CONTEXT_CHUNKS = parseInt(process.env.MAX_CONTEXT_CHUNKS || '40', 10);
 const CONTEXT_CHARS_PER_CHUNK = parseInt(process.env.CONTEXT_CHARS_PER_CHUNK || '1200', 10);
 const HISTORY_MESSAGES = parseInt(process.env.HISTORY_MESSAGES || '4', 10); // total messages (user+assistant)
 
